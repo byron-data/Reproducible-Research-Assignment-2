@@ -1,0 +1,249 @@
+---
+title: "Reproducible Research: Course Project 2"
+output: 
+  html_document:
+    keep_md: yes
+---
+
+# US Storms - Associated Human and Economic Costs
+
+## Synopsis
+
+Storms and other severe weather events can cause both public health and economic problems for communities and municipalities. Many severe events can result in fatalities, injuries, and property damage, and preventing such outcomes to the extent possible is a key concern.
+
+This project involves exploring the U.S. National Oceanic and Atmospheric Administration's (NOAA) storm database. This database tracks characteristics of major storms and weather events in the United States, including when and where they occur, as well as estimates of any fatalities, injuries, and property damage.
+
+The NOAA data will be checked for consistency and cleaned where appropriate. The cleaned data will then be processed to produce summary statistics of the human fatalities, human injuries, property damage and crop damage caused by storms. The summary statistics will be presented in graphical form to make them easier to understand.
+
+## Data Processing
+
+There is also some documentation of the database available. Here you will find how some of the variables are constructed/defined, click on the links to view the documents.
+
+National Weather Service [Storm Data Documentation](https://d396qusza40orc.cloudfront.net/repdata%2Fpeer2_doc%2Fpd01016005curr.pdf)
+
+National Climatic Data Center Storm Events [FAQ](https://d396qusza40orc.cloudfront.net/repdata%2Fpeer2_doc%2FNCDC%20Storm%20Events-FAQ%20Page.pdf)
+
+The events in the database start in the year 1950 and end in November 2011. In the earlier years of the database there are generally fewer events recorded, most likely due to a lack of good records. More recent years should be considered more complete.
+
+```{r, echo=TRUE}
+# Download the data
+download.file(url="https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2FStormData.csv.bz2", destfile="StormData.bz2")
+
+# The file is compressed but read.csv can read the compressed file directly
+stormdata <- read.csv("StormData.bz2", header=TRUE)
+```
+
+## Analysis
+
+First look at the data
+```{r, echo=TRUE}
+head(stormdata,1)
+
+# Convert names to lower case for simplicity
+names(stormdata) <- tolower(names(stormdata))
+
+# Check for any NA values in the data to be examined
+rowCount <- nrow(stormdata)
+fCount <- sum(!is.na(stormdata$fatalities))
+iCount <- sum(!is.na(stormdata$injuries))
+pCount <- sum(!is.na(stormdata$propdmg))
+cCount <- sum(!is.na(stormdata$cropdmg))
+
+if (fCount == rowCount && iCount == rowCount)
+  print("No NA values for fatalities or injuries")
+
+if (pCount == rowCount && cCount == rowCount)
+  print("No NA values for damage")
+
+# Check how many event types before data cleaning
+length(unique(stormdata$evtype))
+```
+
+Initial data cleaning
+```{r, echo=TRUE}
+# Trim leading and trailing blank space, replace multiple spaces with single space
+stormdata$evtype <- gsub("^\\s+|\\s+$", "", stormdata$evtype)
+stormdata$evtype <- gsub("\\s+", " ", stormdata$evtype)
+
+# Replace "/ " with "/"
+stormdata$evtype <- gsub("/ ", "/", stormdata$evtype)
+
+# Convert evtype, propdmgexp & cropdmgexp to uppercase
+stormdata$evtype <- toupper(stormdata$evtype)
+stormdata$propdmgexp <- toupper(stormdata$propdmgexp)
+stormdata$cropdmgexp <- toupper(stormdata$cropdmgexp)
+
+# Replace empty, '?', '+' and '-' with '0'
+stormdata$propdmgexp <- gsub("^$|\\?|\\+|\\-", "0", stormdata$propdmgexp)
+stormdata$cropdmgexp <- gsub("^$|\\?|\\+|\\-", "0", stormdata$cropdmgexp)
+
+# Remove full stop and parenthesis
+stormdata$evtype <- gsub("[.]", "", stormdata$evtype)
+stormdata$evtype <- gsub("\\(", "", stormdata$evtype)
+stormdata$evtype <- gsub("\\)", "", stormdata$evtype)
+```
+
+Look for event types with similar names
+```{r, echo=TRUE}
+# To examine all event types use this code
+# sort(unique(stormdata$evtype))
+
+# To examine types of events with similar names use code
+# unique(stormdata$evtype[grepl(".*EVENT.*", stormdata$evtype)])
+```
+
+After performing further analysis it was decided to combine these event types with similar names
+```{r, echo=TRUE}
+stormdata$evtype <- gsub(".*COLD.*", "COLD", stormdata$evtype)
+stormdata$evtype <- gsub(".*LOW.*TEMPER.*", "COLD", stormdata$evtype)
+
+stormdata$evtype <- gsub(".*HEAT.*", "HEAT", stormdata$evtype)
+stormdata$evtype <- gsub(".*HOT.*", "HEAT", stormdata$evtype)
+stormdata$evtype <- gsub(".*WARM.*", "HEAT", stormdata$evtype)
+stormdata$evtype <- gsub(".*HIGH.*TEMPER.*", "HEAT", stormdata$evtype)
+
+stormdata$evtype <- gsub(".*WINTER.*", "WINTER MIX", stormdata$evtype)
+stormdata$evtype <- gsub(".*WINTRY.*", "WINTER MIX", stormdata$evtype)
+stormdata$evtype <- gsub(".*FLOOD.*", "FLOOD", stormdata$evtype)
+stormdata$evtype <- gsub(".*THUNDERSTORM.*", "THUNDERSTORM", stormdata$evtype)
+stormdata$evtype <- gsub(".*RAIN.*", "RAIN", stormdata$evtype)
+stormdata$evtype <- gsub(".*FIRE.*", "FIRE", stormdata$evtype)
+stormdata$evtype <- gsub(".*WIND.*", "WIND", stormdata$evtype)
+stormdata$evtype <- gsub(".*SNOW.*", "SNOW", stormdata$evtype)
+stormdata$evtype <- gsub(".*HURRICANE.*", "HURRICANE", stormdata$evtype)
+stormdata$evtype <- gsub(".*TORNADO.*", "TORNADO", stormdata$evtype)
+stormdata$evtype <- gsub(".*HAIL.*", "HAIL", stormdata$evtype)
+stormdata$evtype <- gsub(".*BLIZZARD.*", "BLIZZARD", stormdata$evtype)
+stormdata$evtype <- gsub(".*ICE.*", "ICE", stormdata$evtype)
+stormdata$evtype <- gsub(".*TIDE.*", "TIDES", stormdata$evtype)
+stormdata$evtype <- gsub(".*FREEZE.*", "FROST", stormdata$evtype)
+stormdata$evtype <- gsub(".*TROPICAL STORM.*", "TROPICAL STORM", stormdata$evtype)
+stormdata$evtype <- gsub(".*RIP CURRENT.*", "RIP CURRENT", stormdata$evtype)
+```
+
+Number of event types after data cleaning
+```{r, echo=TRUE}
+length(unique(stormdata$evtype))
+```
+
+## Population Health Calculations
+
+### Fatalities
+
+```{r, echo=TRUE}
+# Sum the fatalities for each event, rename the columns, only take those events with at least 1 fatality
+fatalatiesByEvent <- aggregate(stormdata$fatalities, by=list(stormdata$evtype), sum)
+names(fatalatiesByEvent)<-c("Event", "Fatalities")
+fatalatiesByEvent <- fatalatiesByEvent[which(fatalatiesByEvent$Fatalities>0),]
+
+# Show the number of event types with at least 1 fatality, too many to plot
+nrow(fatalatiesByEvent)
+
+# Limit to the top 10 events (sort by Fatalities in descending order)
+fatalatiesByEvent <- fatalatiesByEvent[order(-fatalatiesByEvent$Fatalities),][1:10,]
+```
+
+### Injuries
+
+```{r, echo=TRUE}
+# Sum the injuries for each event, rename the columns, only take those events with at least 1 injury
+injuriesByEvent <- aggregate(stormdata$injuries, by=list(stormdata$evtype), sum)
+names(injuriesByEvent)<-c("Event", "Injuries")
+injuriesByEvent <- injuriesByEvent[which(injuriesByEvent$Injuries>0),]
+
+# Show the number of event types with at least 1 injury, too many to plot
+nrow(injuriesByEvent)
+
+# Limit to the top 10 events (sort by Injuries in descending order)
+injuriesByEvent <- injuriesByEvent[order(-injuriesByEvent$Injuries),][1:10,]
+```
+
+## Economic Consequences
+
+```{r, echo=TRUE}
+# Setup power variable for multiplying property and crop damage values
+power<-c("0"=0,"1"=1,"2"=2,"3"=3,"4"=4,"5"=5,"6"=6,"7"=7,"8"=8,"9"=9,"H"=2,"K"=3,"M"=6,"B"=9)
+
+# Calculate property damage
+stormdata$propdmgexp <- power[as.character(stormdata$propdmgexp)]
+stormdata$propdmgcalc <- stormdata$propdmg * 10^stormdata$propdmgexp
+
+# Calculate crop damage
+stormdata$cropdmgexp <- power[as.character(stormdata$cropdmgexp)]
+stormdata$cropdmgcalc <- stormdata$cropdmg * 10^stormdata$cropdmgexp
+
+# Sum the economic consequences for each event and create a new data frame to store the results
+propDmgByEvent <- aggregate(stormdata$propdmgcalc, by=list(stormdata$evtype), sum)
+cropDmgByEvent <- aggregate(stormdata$cropdmgcalc, by=list(stormdata$evtype), sum)
+damage = data.frame(propDmgByEvent$Group.1, propDmgByEvent$x, cropDmgByEvent$x)
+
+# Rename the columns and create a new 'Total' column combining property and crop damage
+names(damage)<-c("Event","Property","Crop")
+damage$Total <- damage$Property + damage$Crop
+
+# Only take those events with a value greater than 0
+damage <- damage[which(damage$Total>0),]
+
+# Show the number of property damage events and crop damage events with a value > 0, too many to plot
+nrow(damage)
+
+# Limit to the top 10 events (sort by Value in descending order)
+damage <- damage[order(-damage$Total),][1:10,]
+```
+
+## Results
+
+Load libraries
+```{r, echo=TRUE}
+library(ggplot2)
+library(reshape2)
+```
+
+### Question 1: Across the United States, which types of events are most harmful with respect to population health?
+
+Number of fatalities in descending order by event type 
+
+```{r, echo=TRUE}
+graph <- ggplot(fatalatiesByEvent, aes(x=reorder(Event, -Fatalities), Fatalities))
+graph <- graph +
+    geom_bar(stat="identity", aes(fill=Event)) +
+    ggtitle("Top 10 Most Harmful Events by Fatalities") +
+    xlab("Event") +
+    theme(axis.text.x = element_text(angle=45, hjust=1)) +
+    ylab("Fatalities")
+graph
+```
+
+Number of injuries in descending order by event type 
+
+```{r, echo=TRUE}
+graph <- ggplot(injuriesByEvent, aes(x=reorder(Event, -Injuries), Injuries))
+graph <- graph +
+    geom_bar(stat="identity", aes(fill=Event)) +
+    ggtitle("Top 10 Most Harmful Events by Injuries") +
+    xlab("Event") +
+    theme(axis.text.x = element_text(angle=45, hjust=1)) +
+    ylab("Injuries")
+graph
+```
+
+#### Tornados cause the most number of fatalities and injuries
+
+### Question 2: Across the United States, which types of events have the greatest economic consequences?
+
+Economic consequences (dollar value) in descending order by event type
+
+```{r, echo=TRUE}
+# Reshape the data using melt so we can graph Property, Crop and Total separately
+damage <- melt(damage, id.vars="Event")
+
+graph <- ggplot(damage, aes(x=reorder(Event, -value), y=value)) +
+    geom_bar(stat="identity", aes(fill=variable), position="dodge") +
+    scale_y_sqrt("$ Value")  +
+    xlab("Event") +
+    theme(axis.text.x = element_text(angle=45, hjust=1)) +
+    ggtitle("Top 10 Economic Consequences by Event")
+graph
+```
+
+#### Flood causes the greatest economic consequences
